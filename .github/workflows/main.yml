@@ -21,7 +21,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        # The cache option has been completely removed to fix the error
+        # Crucial: The cache instruction has been deleted to prevent the missing file error
 
     # 3. Installs the exact web-scraping packages required for the script
     - name: Install Scraping Dependencies
