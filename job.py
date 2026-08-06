@@ -97,52 +97,51 @@ def main():
         sys.exit(1)
 
     # 5. Parse the page's HTML structure
+       # 5. Parse the page's HTML structure
     soup = BeautifulSoup(jobs_response.text, 'html.parser')
     
     # Load previously seen posts from cache to ensure we only send notifications for new postings
     seen_jobs = load_seen_jobs()
     new_jobs_found = False
 
-    # 6. Locate job entries on the page
-    # NOTE: You will need to inspect your target website's HTML code and adjust these tags.
-    # Below is a standard fallback example looking for links inside common article/job container tags.
-    job_elements = soup.find_all(['div', 'li', 'tr'], class_=lambda c: c and 'job' in c.lower())
-    
-    # If standard keyword search yields nothing, fall back to extracting all text anchors
-    if not job_elements:
-        job_elements = soup.find_all('a', href=True)
+    # Find all job card containers matching your website's structure
+    job_cards = soup.find_all('div', class_='placement-card_container__oqT-v')
+    print(f"Scanning data stream... Found {len(job_cards)} job cards to evaluate.")
 
-    print(f"Scanning data stream... Found {len(job_elements)} potential items to evaluate.")
+    for card in job_cards:
+        # Extract the unique Job ID (e.g., TAP-JOB-ID-2592)
+        id_element = card.find('h3')
+        if not id_element:
+            continue
+        job_id = id_element.get_text(strip=True)
 
-    for element in job_elements:
-        title = element.get_text(strip=True)
-        url = element.get('href', jobs_url)
-        
-        # Ensure URLs are complete web addresses
-        if url.startswith('/'):
-            # Reconstruct absolute paths using your base dashboard domain link
-            from urllib.parse import urljoin
-            url = urljoin(jobs_url, url)
+        # Skip expired or closed jobs right away
+        status_element = card.find('span', class_='drive-status-chip_chip_container__bCQjS')
+        if status_element and "closed" in status_element.get('class', []):
+            continue
+        if "Expired" in card.get_text():
+            continue
 
-        # Unique identifier to determine if we've seen this item before
-        job_id = url if url != jobs_url else title
+        # Extract the job role designation (looks for the paragraph next to "Looking for")
+        title = "Unknown Role"
+        for item in card.find_all('div', class_='placement-card_item-container__+LqDp'):
+            label = item.find('span')
+            if label and "Looking for" in label.get_text():
+                role_p = item.find('p')
+                if role_p:
+                    title = role_p.get_text(strip=True)
+                break
 
-        # Verify it looks like a valid item and is not already checked off inside our tracking cache
-        if title and job_id not in seen_jobs:
-            print(f"Identified fresh listing update: {title}")
+        # Check if this Job ID has been captured in previous checks
+        if job_id not in seen_jobs:
+            print(f"Identified fresh listing update: {job_id} - {title}")
+            
+            # Format custom message metadata for your Telegram alert
+            display_title = f"{job_id}: {title}"
             
             # Send notification directly to your phone via Telegram bot
-            send_telegram_alert(title, url)
+            send_telegram_alert(display_title, jobs_url)
             
             # Record tracking ID to prevent duplicate spam notifications
             seen_jobs.add(job_id)
             new_jobs_found = True
-
-    # 7. Persist cached index data back to repository workspace tracking sheets
-    if new_jobs_found:
-        save_seen_jobs(seen_jobs)
-    else:
-        print("Scan complete: No new job openings found since the last check.")
-
-if __name__ == "__main__":
-    main()
