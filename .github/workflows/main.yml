@@ -16,21 +16,8 @@ jobs:
     - name: Checkout Repository Code
       uses: actions/checkout@v4
 
-    # 2. Sets up a clean Python environment on the cloud runner
-    - name: Set up Python Engine
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        # Crucial: The cache instruction has been deleted to prevent the missing file error
-
-    # 3. Installs the exact web-scraping packages required for the script
-    - name: Install Scraping Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests beautifulsoup4 python-dotenv
-
-    # 4. Safely injects your login credentials and runs the tracking script
-    - name: Execute Job Monitor Script
+    # 2. Directly install dependencies and run the script without using setup-python
+    - name: Run Job Monitor Directly
       env:
         LOGIN_URL: ${{ secrets.LOGIN_URL }}
         JOBS_URL: ${{ secrets.JOBS_URL }}
@@ -38,4 +25,6 @@ jobs:
         AUTH_PASSWORD: ${{ secrets.AUTH_PASSWORD }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: python job.py
+      run: |
+        pip3 install requests beautifulsoup4 python-dotenv
+        python3 job.py
