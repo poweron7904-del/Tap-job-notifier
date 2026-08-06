@@ -36,5 +36,7 @@ jobs:
         JOBS_URL: ${{ secrets.JOBS_URL }}
         AUTH_USERNAME: ${{ secrets.AUTH_USERNAME }}
         AUTH_PASSWORD: ${{ secrets.AUTH_PASSWORD }}
-        ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
-      run: python job_monitor.py
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python job.py
+
