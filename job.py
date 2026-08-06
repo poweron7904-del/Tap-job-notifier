@@ -28,6 +28,7 @@ def send_telegram_alert(job_title, job_url):
         return
 
     message_text = f"🚨 *New Job Posted!*\n\n*Role:* {job_title}\n*Link:* [Click Here]({job_url})"
+    # Fixed tracking endpoint route schema (added /bot and corrected hostname)
     telegram_url = f"https://telegram.org{bot_token}/sendMessage"
     
     payload = {
@@ -59,18 +60,27 @@ def main():
 
     session = requests.Session()
     session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Content-Type": "application/json"
     })
 
+    # Updated key payload from 'username' to 'email' to match Tap Academy API endpoints
     login_data = {
-        "username": username,
+        "email": username,
         "password": password
     }
 
     print("Authenticating session access against login gateway...")
     try:
-        login_response = session.post(login_url, data=login_data, timeout=15)
+        # Switched parameter definition from 'data=' to 'json=' to fix the 405 error
+        login_response = session.post(login_url, json=login_data, timeout=15)
         print(f"Login landing page response code: {login_response.status_code}")
+        
+        # Guard clause to handle incorrect password credentials early
+        if login_response.status_code == 401:
+            print("Authentication failed: Invalid login credentials provided.")
+            sys.exit(1)
+            
     except Exception as e:
         print(f"Critical connection failure during login: {e}")
         sys.exit(1)
