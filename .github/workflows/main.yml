@@ -1,9 +1,10 @@
 name: Automated Job Monitor Fixed
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'
+  repository_dispatch:
+    types: [trigger_30_min_check]
   workflow_dispatch:
+
 
 jobs:
   check-website:
