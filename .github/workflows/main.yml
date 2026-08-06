@@ -1,0 +1,40 @@
+name: Automated Job Monitor
+
+on:
+  schedule:
+    # Runs every 30 minutes, 24/7 (UTC time)
+    - cron: '*/30 * * * *'
+  # Allows you to manually trigger the check anytime from the GitHub interface
+  workflow_dispatch:
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Downloads your code from the repository into the runner environment
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+
+    # 2. Sets up a clean Python environment on the cloud runner
+    - name: Set up Python Engine
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip' # Speeds up subsequent runs
+
+    # 3. Installs the exact web-scraping packages required for the script
+    - name: Install Scraping Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 python-dotenv
+
+    # 4. Safely injects your login credentials and runs the tracking script
+    - name: Execute Job Monitor Script
+      env:
+        LOGIN_URL: ${{ secrets.LOGIN_URL }}
+        JOBS_URL: ${{ secrets.JOBS_URL }}
+        AUTH_USERNAME: ${{ secrets.AUTH_USERNAME }}
+        AUTH_PASSWORD: ${{ secrets.AUTH_PASSWORD }}
+        ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      run: python job_monitor.py
