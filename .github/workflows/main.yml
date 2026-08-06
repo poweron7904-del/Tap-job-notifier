@@ -16,8 +16,8 @@ jobs:
     - name: Checkout Repository Code
       uses: actions/checkout@v4
 
-    # 2. Directly install dependencies and run the script without using setup-python
-    - name: Run Job Monitor Directly
+    # 2. Directly execute dependencies using the system built-in environment
+    - name: Force Execute Script
       env:
         LOGIN_URL: ${{ secrets.LOGIN_URL }}
         JOBS_URL: ${{ secrets.JOBS_URL }}
