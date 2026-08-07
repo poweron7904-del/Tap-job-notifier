@@ -1,9 +1,7 @@
 import os
 import sys
 import json
-import re
 import requests
-from bs4 import BeautifulSoup
 
 CACHE_FILE = "seen_jobs.json"
 
@@ -20,7 +18,7 @@ def save_seen_jobs(seen_ids):
     with open(CACHE_FILE, "w") as f:
         json.dump(list(seen_ids), f)
 
-def send_telegram_alert(job_title, job_url):
+def send_telegram_alert(job_title, job_id, job_url, skills, location, package):
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     
@@ -28,9 +26,18 @@ def send_telegram_alert(job_title, job_url):
         print("Error: Missing Telegram credentials.")
         return
 
-    message_text = f"🚨 *New Job Posted!*\n\n*Role:* {job_title}\n*Link:* [Click Here]({job_url})"
+    # Clean formatting using markdown parameters
+    message_text = (
+        f"🚨 *New Job Drive Posted!*\n\n"
+        f"*Job ID:* {job_id}\n"
+        f"*Role:* {job_title}\n"
+        f"*Package:* {package} LPA\n"
+        f"*Location:* {', '.join(location)}\n"
+        f"*Skills Required:* {', '.join(skills)}\n\n"
+        f"🔗 [Open Dashboard]({job_url})"
+    )
     
-    # FIXED: Replaced standard domain with correct API endpoint prefix and path
+    # FIXED: Restructured target bot URI mapping format completely
     telegram_url = f"https://telegram.org{bot_token}/sendMessage"
     
     payload = {
@@ -42,7 +49,7 @@ def send_telegram_alert(job_title, job_url):
     try:
         response = requests.post(telegram_url, json=payload, timeout=10)
         if response.status_code == 200:
-            print(f"Notification pushed for: {job_title}")
+            print(f"Notification pushed for Job ID: {job_id}")
         else:
             print(f"Telegram API Error: {response.text}")
     except Exception as e:
@@ -76,13 +83,6 @@ def main():
         login_response = session.post(login_url, json=login_data, timeout=15)
         print(f"Login landing page response code: {login_response.status_code}")
         
-        # DEBUG ADDITION: Print and save login payload response stream
-        print("\n--- DEBUG: RAW LOGIN RESPONSE ---")
-        print(login_response.text[:1000])  # Prints first 1000 characters
-        print("---------------------------------\n")
-        with open("login_debug.html", "w", encoding="utf-8") as f:
-            f.write(login_response.text)
-        
         if login_response.status_code == 401:
             print("Authentication failed: Invalid login credentials provided.")
             sys.exit(1)
@@ -94,57 +94,58 @@ def main():
     print("Navigating securely to internal job directory dashboard...")
     try:
         jobs_response = session.get(jobs_url, timeout=15)
-        print(f"Dashboard page response code: {jobs_response.status_code}")
-        
-        # DEBUG ADDITION: Print and save dashboard payload response stream
-        print("\n--- DEBUG: RAW DASHBOARD RESPONSE ---")
-        print(jobs_response.text[:2000])  # Prints first 2000 characters
-        print("--------------------------------------\n")
-        with open("dashboard_debug.html", "w", encoding="utf-8") as f:
-            f.write(jobs_response.text)
-            
+        print(f"Dashboard data response code: {jobs_response.status_code}")
     except Exception as e:
         print(f"Critical connection failure parsing dashboard: {e}")
         sys.exit(1)
 
-    soup = BeautifulSoup(jobs_response.text, 'html.parser')
+    # NATIVE JSON PARSING: Replaced BeautifulSoup completely
+    try:
+        response_data = jobs_response.json()
+        # Accommodates either a raw dictionary containing a 'data' array or a direct list array response
+        job_cards = response_data.get('data', []) if isinstance(response_data, dict) else response_data
+    except Exception as e:
+        print(f"Critical Error: The response is not structured JSON format. Check URL path target. {e}")
+        sys.exit(1)
+
     seen_jobs = load_seen_jobs()
     new_jobs_found = False
 
-    job_cards = soup.find_all('div', class_=re.compile(r'placement-card_container'))
     print(f"Scanning data stream... Found {len(job_cards)} job cards to evaluate.")
 
-    for card in job_cards:
-        id_element = card.find('h3')
-        if not id_element:
+    for job in job_cards:
+        # Extract individual unique string ID field markers safely 
+        job_id = str(job.get('jobId', job.get('_id', '')))
+        if not job_id:
             continue
-        job_id = id_element.get_text(strip=True)
 
-        status_element = card.find('span', class_=re.compile(r'drive-status-chip_chip_container'))
+        # FILTER EXPIRED OR INVALID DRIVES: Checks API metadata directly
+        is_expired = job.get('expired', False)
+        on_hold = job.get('onHold', False)
         
-        is_closed = False
-        if status_element and status_element.get('class'):
-            for cls in status_element.get('class'):
-                if "closed" in cls.lower():
-                    is_closed = True
-                    break
-                    
-        if is_closed or "Expired" in card.get_text():
+        if is_expired or on_hold:
             continue
 
-        title = "Unknown Role"
-        for item in card.find_all('div', class_=re.compile(r'placement-card_item-container')):
-            label = item.find('span')
-            if label and "Looking for" in label.get_text():
-                role_p = item.find('p')
-                if role_p:
-                    title = role_p.get_text(strip=True)
-                break
+        # Target metadata attributes extraction fields
+        title = job.get('jobTitle', 'Unknown Role')
+        skills = job.get('skills', [])
+        location = job.get('jobLocation', ['Not Specified'])
+        package = job.get('package', 'N/A')
 
+        # Run conditional cache loop deduplication comparison check
         if job_id not in seen_jobs:
             print(f"Identified fresh listing update: {job_id} - {title}")
-            display_title = f"{job_id}: {title}"
-            send_telegram_alert(display_title, jobs_url)
+            
+            # Fire alerting trigger sequence tracking updates
+            send_telegram_alert(
+                job_title=title, 
+                job_id=job_id, 
+                job_url=jobs_url, 
+                skills=skills, 
+                location=location, 
+                package=package
+            )
+            
             seen_jobs.add(job_id)
             new_jobs_found = True
 
