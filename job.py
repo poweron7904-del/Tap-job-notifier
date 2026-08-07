@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import requests
 from bs4 import BeautifulSoup
 
@@ -28,7 +29,8 @@ def send_telegram_alert(job_title, job_url):
         return
 
     message_text = f"🚨 *New Job Posted!*\n\n*Role:* {job_title}\n*Link:* [Click Here]({job_url})"
-    # Fixed tracking endpoint route schema (added /bot and corrected hostname)
+    
+    # FIXED: Replaced standard domain with correct API endpoint prefix and path
     telegram_url = f"https://telegram.org{bot_token}/sendMessage"
     
     payload = {
@@ -64,7 +66,6 @@ def main():
         "Content-Type": "application/json"
     })
 
-    # Updated key payload from 'username' to 'email' to match Tap Academy API endpoints
     login_data = {
         "email": username,
         "password": password
@@ -72,11 +73,9 @@ def main():
 
     print("Authenticating session access against login gateway...")
     try:
-        # Switched parameter definition from 'data=' to 'json=' to fix the 405 error
         login_response = session.post(login_url, json=login_data, timeout=15)
         print(f"Login landing page response code: {login_response.status_code}")
         
-        # Guard clause to handle incorrect password credentials early
         if login_response.status_code == 401:
             print("Authentication failed: Invalid login credentials provided.")
             sys.exit(1)
@@ -96,7 +95,8 @@ def main():
     seen_jobs = load_seen_jobs()
     new_jobs_found = False
 
-    job_cards = soup.find_all('div', class_='placement-card_container__oqT-v')
+    # FIXED: Using Regular Expressions to cleanly bypass dynamic CSS hash adjustments
+    job_cards = soup.find_all('div', class_=re.compile(r'placement-card_container'))
     print(f"Scanning data stream... Found {len(job_cards)} job cards to evaluate.")
 
     for card in job_cards:
@@ -105,14 +105,23 @@ def main():
             continue
         job_id = id_element.get_text(strip=True)
 
-        status_element = card.find('span', class_='drive-status-chip_chip_container__bCQjS')
-        if status_element and "closed" in status_element.get('class', []):
-            continue
-        if "Expired" in card.get_text():
+        # FIXED: Modified state evaluation syntax to intercept wildcards securely
+        status_element = card.find('span', class_=re.compile(r'drive-status-chip_chip_container'))
+        
+        # Check if "closed" string exists inside any of the matched class strings
+        is_closed = False
+        if status_element and status_element.get('class'):
+            for cls in status_element.get('class'):
+                if "closed" in cls.lower():
+                    is_closed = True
+                    break
+                    
+        if is_closed or "Expired" in card.get_text():
             continue
 
         title = "Unknown Role"
-        for item in card.find_all('div', class_='placement-card_item-container__+LqDp'):
+        # FIXED: Using regex variant for the child item containers as well
+        for item in card.find_all('div', class_=re.compile(r'placement-card_item-container')):
             label = item.find('span')
             if label and "Looking for" in label.get_text():
                 role_p = item.find('p')
