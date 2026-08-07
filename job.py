@@ -76,6 +76,13 @@ def main():
         login_response = session.post(login_url, json=login_data, timeout=15)
         print(f"Login landing page response code: {login_response.status_code}")
         
+        # DEBUG ADDITION: Print and save login payload response stream
+        print("\n--- DEBUG: RAW LOGIN RESPONSE ---")
+        print(login_response.text[:1000])  # Prints first 1000 characters
+        print("---------------------------------\n")
+        with open("login_debug.html", "w", encoding="utf-8") as f:
+            f.write(login_response.text)
+        
         if login_response.status_code == 401:
             print("Authentication failed: Invalid login credentials provided.")
             sys.exit(1)
@@ -87,6 +94,15 @@ def main():
     print("Navigating securely to internal job directory dashboard...")
     try:
         jobs_response = session.get(jobs_url, timeout=15)
+        print(f"Dashboard page response code: {jobs_response.status_code}")
+        
+        # DEBUG ADDITION: Print and save dashboard payload response stream
+        print("\n--- DEBUG: RAW DASHBOARD RESPONSE ---")
+        print(jobs_response.text[:2000])  # Prints first 2000 characters
+        print("--------------------------------------\n")
+        with open("dashboard_debug.html", "w", encoding="utf-8") as f:
+            f.write(jobs_response.text)
+            
     except Exception as e:
         print(f"Critical connection failure parsing dashboard: {e}")
         sys.exit(1)
@@ -95,7 +111,6 @@ def main():
     seen_jobs = load_seen_jobs()
     new_jobs_found = False
 
-    # FIXED: Using Regular Expressions to cleanly bypass dynamic CSS hash adjustments
     job_cards = soup.find_all('div', class_=re.compile(r'placement-card_container'))
     print(f"Scanning data stream... Found {len(job_cards)} job cards to evaluate.")
 
@@ -105,10 +120,8 @@ def main():
             continue
         job_id = id_element.get_text(strip=True)
 
-        # FIXED: Modified state evaluation syntax to intercept wildcards securely
         status_element = card.find('span', class_=re.compile(r'drive-status-chip_chip_container'))
         
-        # Check if "closed" string exists inside any of the matched class strings
         is_closed = False
         if status_element and status_element.get('class'):
             for cls in status_element.get('class'):
@@ -120,7 +133,6 @@ def main():
             continue
 
         title = "Unknown Role"
-        # FIXED: Using regex variant for the child item containers as well
         for item in card.find_all('div', class_=re.compile(r'placement-card_item-container')):
             label = item.find('span')
             if label and "Looking for" in label.get_text():
