@@ -38,7 +38,7 @@ def send_telegram_alert(job_title, job_id, job_url, skills, location, package):
     )
     
     # FIXED: Replaced standard domain with correct API endpoint prefix and path
-    telegram_url = f"https://telegram.org{bot_token}/sendMessage"
+    telegram_url = f"https://api.telegram.org{bot_token}/sendMessage"
     
     payload = {
         "chat_id": chat_id,
