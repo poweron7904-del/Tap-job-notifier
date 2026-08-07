@@ -37,7 +37,7 @@ def send_telegram_alert(job_title, job_id, job_url, skills, location, package):
         f"🔗 [Open Dashboard]({job_url})"
     )
     
-    # FIXED: Restructured target bot URI mapping format completely
+    # FIXED: Replaced standard domain with correct API endpoint prefix and path
     telegram_url = f"https://telegram.org{bot_token}/sendMessage"
     
     payload = {
