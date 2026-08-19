@@ -42,14 +42,7 @@ def save_seen_jobs(seen_ids):
         sys.exit(1)
 
 
-def send_telegram_alert(
-    job_title,
-    job_id,
-    job_url,
-    skills,
-    location,
-    package
-):
+def send_telegram_alert(job_title, job_id, job_url, skills, location, package):
     """Send a new-job notification to Telegram."""
 
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -77,9 +70,7 @@ def send_telegram_alert(
         f"🔗 [Open Dashboard]({job_url})"
     )
 
-    telegram_url = (
-        f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    )
+    telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
     payload = {
         "chat_id": chat_id,
@@ -88,11 +79,7 @@ def send_telegram_alert(
     }
 
     try:
-        response = requests.post(
-            telegram_url,
-            json=payload,
-            timeout=10
-        )
+        response = requests.post(telegram_url, json=payload, timeout=10)
 
         if response.status_code == 200:
             print(f"Notification pushed for Job ID: {job_id}")
@@ -127,29 +114,16 @@ def main():
         "Accept": "application/json, text/plain, */*",
     })
 
-    print(
-        "Navigating directly to internal job directory "
-        "dashboard (no login step)..."
-    )
+    print("Navigating directly to internal job directory dashboard (no login step)...")
 
     # Fetch jobs
     try:
-        jobs_response = session.get(
-            jobs_url,
-            timeout=15
-        )
-
-        print(
-            f"Dashboard data response code: "
-            f"{jobs_response.status_code}"
-        )
-
+        jobs_response = session.get(jobs_url, timeout=15)
+        print(f"Dashboard data response code: {jobs_response.status_code}")
         jobs_response.raise_for_status()
 
     except requests.RequestException as e:
-        print(
-            f"Critical connection failure fetching dashboard: {e}"
-        )
+        print(f"Critical connection failure fetching dashboard: {e}")
         sys.exit(1)
 
     # Parse JSON response
@@ -161,17 +135,11 @@ def main():
         elif isinstance(response_data, list):
             job_cards = response_data
         else:
-            print(
-                "Critical Error: Unexpected JSON structure "
-                "received from dashboard."
-            )
+            print("Critical Error: Unexpected JSON structure received from dashboard.")
             sys.exit(1)
 
     except (ValueError, json.JSONDecodeError) as e:
-        print(
-            "Critical Error: The response is not structured "
-            f"JSON format. Check URL path target. {e}"
-        )
+        print(f"Critical Error: The response is not structured JSON format. Check URL path target. {e}")
         sys.exit(1)
 
     # Load persistent job history from repository
@@ -179,10 +147,7 @@ def main():
 
     new_jobs_found = False
 
-    print(
-        f"Scanning data stream... "
-        f"Found {len(job_cards)} job cards to evaluate."
-    )
+    print(f"Scanning data stream... Found {len(job_cards)} job cards to evaluate.")
 
     for job in job_cards:
 
@@ -190,12 +155,7 @@ def main():
             continue
 
         # Get job ID
-        job_id = str(
-            job.get(
-                "jobId",
-                job.get("_id", "")
-            )
-        )
+        job_id = str(job.get("jobId", job.get("_id", "")))
 
         if not job_id:
             continue
@@ -208,34 +168,16 @@ def main():
             continue
 
         # Job information
-        title = job.get(
-            "jobTitle",
-            "Unknown Role"
-        )
-
-        skills = job.get(
-            "skills",
-            []
-        )
-
-        location = job.get(
-            "jobLocation",
-            ["Not Specified"]
-        )
-
-        package = job.get(
-            "package",
-            "N/A"
-        )
+        title = job.get("jobTitle", "Unknown Role")
+        skills = job.get("skills", [])
+        location = job.get("jobLocation", ["Not Specified"])
+        package = job.get("package", "N/A")
 
         # Check whether we already notified this job
         if job_id in seen_jobs:
             continue
 
-        print(
-            f"Identified fresh listing update: "
-            f"{job_id} - {title}"
-        )
+        print(f"Identified fresh listing update: {job_id} - {title}")
 
         # Send Telegram notification
         notification_sent = send_telegram_alert(
@@ -252,19 +194,13 @@ def main():
             seen_jobs.add(job_id)
             new_jobs_found = True
         else:
-            print(
-                f"Job {job_id} was NOT marked as seen "
-                "because Telegram notification failed."
-            )
+            print(f"Job {job_id} was NOT marked as seen because Telegram notification failed.")
 
     # Save updated state
     if new_jobs_found:
         save_seen_jobs(seen_jobs)
     else:
-        print(
-            "Scan complete: No new open jobs successfully "
-            "notified."
-        )
+        print("Scan complete: No new open jobs successfully notified.")
 
     print("--- WORKFLOW SCRIPT END ---")
 
